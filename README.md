@@ -38,7 +38,7 @@ Apache Kafka는 **분산 스트리밍 플랫폼**입니다. 분산 스트리밍 
 
 토픽은 데이터가 발행되는 카테고리를 말합니다. 카프카에서 토픽은 항상 multi-subscribe 입니다. 즉 토픽은 0개나 1개 또는 그 이상의 데이터들을 구독(subscribe)를 하는 소비자(consumer)를 가질 수 있습니다.
 
-각각의 토픽은 카프카 클러스터가 다음과 같이 생긴 파티션된 로그로 유지합니다.
+각각의 **토픽**은 **카프카 클러스터가** 다음과 같이 생긴 **파티션**된 **로그**로 유지합니다.
 
 ![log_anatomy](https://kafka.apache.org/24/images/log_anatomy.png)
 
@@ -47,10 +47,6 @@ Apache Kafka는 **분산 스트리밍 플랫폼**입니다. 분산 스트리밍 
 카프카 클러스터 published 된 데이터들이 소비자에 의해 소비 됐던 말던 데이터들을 안전하게 보관합니다.(보관 기간은 설정 가능) 예를 들어 데이터 보관 기간을 2일로 정했다면, 2일동안 데이터가 살아 남아있고, 그 후에는 데이터가 사라집니다. 
 
 ![log_consumer](https://kafka.apache.org/24/images/log_consumer.png)
-
-사실
-
-
 
 
 
@@ -80,14 +76,70 @@ Producers는 선택된 topic에게 데이터를 주는 역할을 합니다. (RX�
 
 ## Consumers
 
-Consumer는 그룹 이름으로 구별하고, 토픽으로 들어온 데이터는 알맞은 구독된 소비자 인스턴스에 전달 됩니다. 
+Consumer는 그룹 이름으로 구별하고, 토픽으로 들어온 데이터를 토픽을 구독한 소비자 인스턴스에 전달 됩니다. Consumer 인스턴스는 프로세스에 분리되있거나, 머신에서 분리되어있습니다.(같은 카프카에 존재하지 않는다는 뜻.)
+
+모든 consumer 인스턴스가 같은 consumer 그룹을 갖는다면, 데이터가 효과적으로 로드밸런싱 됩니다.
+
+모든 consumer 인스턴스가 각각 다른 consumer 그룹을 갖는다면, 각각의 데이터는 consumer 프로세스에 브로드캐스트 됩니다. 
+
+![consumer-groups](https://kafka.apache.org/24/images/consumer-groups.png)
+
+2개의 카프카서버가 클러스터를 이루어서 P0부터 P3까지 호스팅하고 두개의 consumer 그룹이 있습니다.  Consumer Group A는 2개의 consumer 인스턴스가 있고, Consumer Group B는 4개의 인스턴스가 있습니다.
+
+그런데 토픽들은 consumer group들을 갖고 있는데, 그 이유는 확장성과, 장애 내성을 위한 것입니다. 
+
+카프카에서 소비자들이 소비하는 방법은 
+
+
+
+A two server Kafka cluster hosting four partitions (P0-P3) with two consumer groups. Consumer group A has two consumer instances and group B has four.
+
+More commonly, however, we have found that topics have a small number of consumer groups, one for each "logical subscriber". Each group is composed of many consumer instances for scalability and fault tolerance. This is nothing more than publish-subscribe semantics where the subscriber is a cluster of consumers instead of a single process.
+
+The way consumption is implemented in Kafka is by dividing up the partitions in the log over the consumer instances so that each instance is the exclusive consumer of a "fair share" of partitions at any point in time. This process of maintaining membership in the group is handled by the Kafka protocol dynamically. If new instances join the group they will take over some partitions from other members of the group; if an instance dies, its partitions will be distributed to the remaining instances.
+
+Kafka only provides a total order over records *within* a partition, not between different partitions in a topic. Per-partition ordering combined with the ability to partition data by key is sufficient for most applications. However, if you require a total order over records this can be achieved with a topic that has only one partition, though this will mean only one consumer process per consumer group. 
+
+## Multi-tenacy(멀티 테넌시)
+
+카프카를 멀티 테넌시 방법으로 배치할 수 있습니다. 멀티 테넌시는 어떤 토픽이 데이터를 생산하거나 소비할지 설정함으로써 활성화 시킬수 있습니다. There is also operations support for quotas. 관리자는 요청에 대한 할당량을 정의하고 적용하여 클라이언트가 사용하는 브로커 리소스를 제어 할 수 있습니다.
+
+> 멀티 테넌시(Multi-tenacy) : 다중 소유라는 뜻
+
+
+
+## Gurantees
+
+카프카는 다음과 같은 보장을 합니다.
+
+- Producer가 특정한 토픽 파티션으로 보낸 메세지는 전송된 순서대로 추가됩니다. 같은 Producer가 M1을 보낸다음 M2를 보내면, M1 다음의 M2가 옵니다.
+- Consumer 인스턴스는 로그에 담겨진 순서대로 데이터를 받습니다.
+- Consumer들을 복제하기 때문에 서버가 죽어도, 데이터를 잃지 않습니다.
+
+
+
+## 카프카의 메세징 시스템
+
+전통적인 엔터프라이즈 메세징 시스템과 비교해서 카프카의 스트림의 개념은 어떻게 다를까요?
+
+전통적인 메세징 시스템은 두개의 모델을 갖는데, queue와 publish-subscribe 입니다.
+
+큐는 서버에서 데이터를 읽고 데이터들을 컨슈머에게 전해주는 컨슈머의 풀 입니다.  publish-subscribe 모델은 데이터를 모든 컨슈머에게 전달해주는 것입니다. 이 두개의 모델은 장점과 단점을 갖고 있습니다. 큐의 강점은 여러 개의 컨슈머 인스턴스에 대하여 데이터 작업을 분할시키게 해주고, 작업을 스케일업 해줄 수 있습니다. 불행하게도 큐는 여러개의 구독자(subscribe)를 둘 수 없습니다. 데이터가 읽혀지면 그 데이터는 사라지기 때문입니다. Publish-subscribe는 멀티 프로세스에게 데이터를 전달할 수 있지만, 모든 메세지가 모든 구독자에게 가므로 스케일업 할 방법이 없습니다.
+
+The consumer group concept in Kafka generalizes these two concepts. 카프카에서 consumer 그룹의 컨셉은 위에 두개의 컨셉을 해결할 수 있습니다. 큐를 사용해서 컨슈머 그룹은 프로세스들을 나누어질 수 있고(컨슈머 그룹의 수로), publish-subscribe로 카프카는 여러 개의 컨슈머 그룹에게 메세지를 전달할 수 있습니다.
+
+카프카 모델의 장점은 모든 토픽은 두개의 프로퍼티를 갖는데, 프로세싱을 스케일 할 수 있고, 또한 멀티-구독자를 가질 수 있습니다. 둘중에 하나를 선택할 필요가 없습니다.
+
+카프카는 또한 전통적인 메세징 시스템보다 강하게 데이터의 순서를 보장합니다. 
+
+전통적인 큐는 서버에서 순서대로 데이터를 가져옵니다, 그리고 멀티 컨슈머가 큐에서 데이터를 가져오면 서버는 데이터가 저장된 순서대로 데이터를 줍니다. 그러나 서버는 데이터를 순서대로 줬지만 , 데이터는 비동기적으로 컨슈머에게 전달될 수 있어서, 컨슈머에게 다른 데이터의 순서로 전달 될 수 있습니다. 
 
 
 
 
-
-## 참고자료
 
 ## 참고자료
 
 [카프카 공식문서](https://kafka.apache.org/documentation/#introduction)
+
+[고승범님이 쓴 블로그](https://www.popit.kr/author/peter5236)
