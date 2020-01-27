@@ -142,6 +142,290 @@ The consumer group concept in Kafka generalizes these two concepts. 카프카에
 
 
 
+## 스토리지 시스템
+
+#### Kafka as a Storage System
+
+Any message queue that allows publishing messages decoupled from consuming them is effectively acting as a storage system for the in-flight messages. What is different about Kafka is that it is a very good storage system.
+
+Data written to Kafka is written to disk and replicated for fault-tolerance. Kafka allows producers to wait on acknowledgement so that a write isn't considered complete until it is fully replicated and guaranteed to persist even if the server written to fails.
+
+The disk structures Kafka uses scale well—Kafka will perform the same whether you have 50 KB or 50 TB of persistent data on the server.
+
+As a result of taking storage seriously and allowing the clients to control their read position, you can think of Kafka as a kind of special purpose distributed filesystem dedicated to high-performance, low-latency commit log storage, replication, and propagation.
+
+For details about the Kafka's commit log storage and replication design, please read [this](https://kafka.apache.org/documentation/#design) page.
+
+#### Kafka for Stream Processing
+
+It isn't enough to just read, write, and store streams of data, the purpose is to enable real-time processing of streams.
+
+In Kafka a stream processor is anything that takes continual streams of data from input topics, performs some processing on this input, and produces continual streams of data to output topics.
+
+For example, a retail application might take in input streams of sales and shipments, and output a stream of reorders and price adjustments computed off this data.
+
+It is possible to do simple processing directly using the producer and consumer APIs. However for more complex transformations Kafka provides a fully integrated [Streams API](https://kafka.apache.org/documentation/streams). This allows building applications that do non-trivial processing that compute aggregations off of streams or join streams together.
+
+This facility helps solve the hard problems this type of application faces: handling out-of-order data, reprocessing input as code changes, performing stateful computations, etc.
+
+The streams API builds on the core primitives Kafka provides: it uses the producer and consumer APIs for input, uses Kafka for stateful storage, and uses the same group mechanism for fault tolerance among the stream processor instances.
+
+#### Putting the Pieces Together
+
+This combination of messaging, storage, and stream processing may seem unusual but it is essential to Kafka's role as a streaming platform.
+
+A distributed file system like HDFS allows storing static files for batch processing. Effectively a system like this allows storing and processing *historical* data from the past.
+
+A traditional enterprise messaging system allows processing future messages that will arrive after you subscribe. Applications built in this way process future data as it arrives.
+
+Kafka combines both of these capabilities, and the combination is critical both for Kafka usage as a platform for streaming applications as well as for streaming data pipelines.
+
+By combining storage and low-latency subscriptions, streaming applications can treat both past and future data the same way. That is a single application can process historical, stored data but rather than ending when it reaches the last record it can keep processing as future data arrives. This is a generalized notion of stream processing that subsumes batch processing as well as message-driven applications.
+
+Likewise for streaming data pipelines the combination of subscription to real-time events make it possible to use Kafka for very low-latency pipelines; but the ability to store data reliably make it possible to use it for critical data where the delivery of data must be guaranteed or for integration with offline systems that load data only periodically or may go down for extended periods of time for maintenance. The stream processing facilities make it possible to transform data as it arrives.
+
+For more information on the guarantees, APIs, and capabilities Kafka provides see the rest of the [documentation](https://kafka.apache.org/documentation.html).
+
+### [1.2 Use Cases](https://kafka.apache.org/documentation/#uses)
+
+Here is a description of a few of the popular use cases for Apache Kafka®. For an overview of a number of these areas in action, see [this blog post](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying/).
+
+#### [Messaging](https://kafka.apache.org/documentation/#uses_messaging)
+
+Kafka works well as a replacement for a more traditional message broker. Message brokers are used for a variety of reasons (to decouple processing from data producers, to buffer unprocessed messages, etc). In comparison to most messaging systems Kafka has better throughput, built-in partitioning, replication, and fault-tolerance which makes it a good solution for large scale message processing applications.
+
+In our experience messaging uses are often comparatively low-throughput, but may require low end-to-end latency and often depend on the strong durability guarantees Kafka provides.
+
+In this domain Kafka is comparable to traditional messaging systems such as [ActiveMQ](http://activemq.apache.org/) or [RabbitMQ](https://www.rabbitmq.com/).
+
+#### [Website Activity Tracking](https://kafka.apache.org/documentation/#uses_website)
+
+The original use case for Kafka was to be able to rebuild a user activity tracking pipeline as a set of real-time publish-subscribe feeds. This means site activity (page views, searches, or other actions users may take) is published to central topics with one topic per activity type. These feeds are available for subscription for a range of use cases including real-time processing, real-time monitoring, and loading into Hadoop or offline data warehousing systems for offline processing and reporting.
+
+Activity tracking is often very high volume as many activity messages are generated for each user page view.
+
+#### [Metrics](https://kafka.apache.org/documentation/#uses_metrics)
+
+Kafka is often used for operational monitoring data. This involves aggregating statistics from distributed applications to produce centralized feeds of operational data.
+
+#### [Log Aggregation](https://kafka.apache.org/documentation/#uses_logs)
+
+Many people use Kafka as a replacement for a log aggregation solution. Log aggregation typically collects physical log files off servers and puts them in a central place (a file server or HDFS perhaps) for processing. Kafka abstracts away the details of files and gives a cleaner abstraction of log or event data as a stream of messages. This allows for lower-latency processing and easier support for multiple data sources and distributed data consumption. In comparison to log-centric systems like Scribe or Flume, Kafka offers equally good performance, stronger durability guarantees due to replication, and much lower end-to-end latency.
+
+#### [Stream Processing](https://kafka.apache.org/documentation/#uses_streamprocessing)
+
+Many users of Kafka process data in processing pipelines consisting of multiple stages, where raw input data is consumed from Kafka topics and then aggregated, enriched, or otherwise transformed into new topics for further consumption or follow-up processing. For example, a processing pipeline for recommending news articles might crawl article content from RSS feeds and publish it to an "articles" topic; further processing might normalize or deduplicate this content and publish the cleansed article content to a new topic; a final processing stage might attempt to recommend this content to users. Such processing pipelines create graphs of real-time data flows based on the individual topics. Starting in 0.10.0.0, a light-weight but powerful stream processing library called [Kafka Streams](https://kafka.apache.org/documentation/streams) is available in Apache Kafka to perform such data processing as described above. Apart from Kafka Streams, alternative open source stream processing tools include [Apache Storm](https://storm.apache.org/) and [Apache Samza](http://samza.apache.org/).
+
+#### [Event Sourcing](https://kafka.apache.org/documentation/#uses_eventsourcing)
+
+[Event sourcing](http://martinfowler.com/eaaDev/EventSourcing.html) is a style of application design where state changes are logged as a time-ordered sequence of records. Kafka's support for very large stored log data makes it an excellent backend for an application built in this style.
+
+#### [Commit Log](https://kafka.apache.org/documentation/#uses_commitlog)
+
+Kafka can serve as a kind of external commit-log for a distributed system. The log helps replicate data between nodes and acts as a re-syncing mechanism for failed nodes to restore their data. The [log compaction](https://kafka.apache.org/documentation.html#compaction) feature in Kafka helps support this usage. In this usage Kafka is similar to [Apache BookKeeper](https://bookkeeper.apache.org/) project.
+
+
+
+## 시작하기
+
+지금부터 카프카를 실습해보겠습니다. 전 맥을 쓰고 있기 때문에 맥 위주로 설명하겠습니다. 만약 윈도우를 사용하신다면 `bin/` 대신에 `bin\windows\ ` 과 .bat을 사용하시면 됩니다.
+
+
+
+### 다운로드하기
+
+[Download](https://www.apache.org/dyn/closer.cgi?path=/kafka/2.4.0/kafka_2.12-2.4.0.tgz) 여기에서 카프카를 다운 받으시면 됩니다.
+
+```
+$ tar -xzf kafka_2.12-2.4.0.tgz
+$ cd kafka_2.12-2.4.0
+```
+
+### 카프카 서버 시작하기
+
+카프카는 [ZooKeeper](https://zookeeper.apache.org/) 를 사용하기 때문에 먼저, ZooKeeper 서버를 시작해야합니다. 
+
+**주키퍼 시작**
+
+```
+$ bin/zookeeper-server-start.sh config/zookeeper.properties 
+```
+
+**카프카 시작**
+
+```
+$ bin/kafka-server-start.sh config/server.properties 
+```
+
+### 토픽 만들기
+
+test라는 토픽을 하나의 파티션으로 만들고 복제를 한번 해보겠습니다.
+
+```
+$ bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1 --topic test
+
+```
+
+list 토픽 명령을 실행하면 다음과 같은 토픽이 나옵니다
+
+```
+$ bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+test
+```
+
+대안으로는 이렇게 토픽을 수동으로 생성하는 대신에 브로커에게 토픽이 없을 때 자동으로 생성하는 설정을 할 수 있습니다.
+
+### 메세지 보내기
+
+파일 또는 표준입력에서 입력 받아 카프카 클러스터에 메세지로 전송하는 명령을 할 수 있습니다. 디폴트로 엔터 치자마자 메세지가 발행됩니다.
+
+몇개의 메세지를 콘솔을 이용해서 서버에게 보내보겠습니다.
+
+```
+$ bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test
+This is a message
+This is another message
+```
+
+### 소비자 시작하기
+
+또한 표준 출력으로 메세지를 받는 명령을 할 수 있습니다.
+
+```
+$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
+This is a message
+This is another message
+```
+
+위에 있는 명령을 새로운 터미널에 입력하면 위에서 보낸 메세지를 받는걸 알 수 있습니다.
+
+### 멀티 브로커 클러스터 설정하기
+
+지금까지는 하나의 브로커만 사용했습니다. 카프카에서 싱글 브로커는 그냥 클러스터 사이즈가 1여서 몇개의 새로운 브로커 인스턴스를 실행해도 딱히 달라지는 건 없습니다. 그러나 느낌좀 내기위해서 세개를 더 추가해보겠습니다.
+
+첫번 째로 각각의 브로커의 설정파일을 만들어줘야 합니다.(윈도우에서는 `copy` 명렁어를 사용하세요.)
+
+```
+$ cp config/server.properties config/server-1.properties
+$ cp config/server.properties config/server-2.properties
+```
+
+그 다음 방금 복사한 파일의 설정을 조금 수정 하겠습니다.
+
+```
+config/server-1.properties:
+    broker.id=1
+    listeners=PLAINTEXT://:9093
+    log.dirs=/tmp/kafka-logs-1
+ 
+config/server-2.properties:
+    broker.id=2
+    listeners=PLAINTEXT://:9094
+    log.dirs=/tmp/kafka-logs-2
+```
+
+`broker.id` 속성은 클러스트 안에서 유니크하고 영구적인 이름입니다. 여러 개의 카프카를 로컬에서 돌리기때문에port와 log를 오버라이드 해줘야 합니다. 
+
+이미 ZooKeeper와 하나의 카프카서버가 이미 시작됐으므로 2개의 카프카를 시작해봅시다.
+
+```
+$  bin/kafka-server-start.sh config/server-1.properties 
+```
+
+```
+$  bin/kafka-server-start.sh config/server-2.properties 
+```
+
+이제 Now create a new topic with a replication factor of three: 
+
+```
+$ bin/kafka-topics.sh --create --bootstrap-server localhost:9092 --replication-factor 3 --partitions 1 --topic my-replicated-topic
+```
+
+이제 클러스터가 생겼으니 어떤 브로커가 무엇을 하고 있는지 알려면 "describe topics" 명령어를 실행하면 됩니다.
+
+```
+$ bin/kafka-topics.sh --describe --bootstrap-server localhost:9092 --topic my-replicated-topic
+Topic:my-replicated-topic   PartitionCount:1    ReplicationFactor:3 Configs:
+    Topic: my-replicated-topic  Partition: 0    Leader: 1   Replicas: 1,2,0 Isr: 1,2,0
+
+```
+
+첫번 째 줄은 모든 파티션의 요약을 나타냅니다. 해당 토픽에 관해서는 오직 한개의 파티션만 있기 때문에 1줄만 나옵니다. 
+
+- "leader"는 주어진 파티션에 대해 읽기와 쓰기를 담당합니다. leader는 파티션에서 랜덤으로 선택됩니다. 
+- "replicas"는 이 파티션을 복제한 로그의 리스트 수 입니다. (egardless of whether they are the leader or even if they are currently alive.)
+- "isr" is the set of "in-sync" replicas. This is the subset of the replicas list that is currently alive and caught-up to the leader.
+
+이 예제에서는 토픽의 파티션에 대해서는 node 1이 leader 역할을 합니다. 
+
+우리가 만들었던 원래의 토픽이 어딨는지 확인하려면 다음과 같은 명령어를 입력하면 됩니다.
+
+```
+$ bin/kafka-topics.sh --describe --bootstrap-server localhost:9092 --topic test
+Topic:test  PartitionCount:1    ReplicationFactor:1 Configs:
+    Topic: test Partition: 0    Leader: 0   Replicas: 0 Isr: 0
+```
+
+역시나 원래 토픽은 replicas가 없으며, 서버를 만들 때 클러스터의 유일한 서버인 서버0에 있습니다.? (So there is no surprise there—the original topic has no replicas and is on server 0, the only server in our cluster when we created it.)
+
+새로운 토픽에 몇 개의 메세지만 전송해보겠습니다.
+
+```
+$ bin/kafka-console-producer.sh --broker-list localhost:9092 --topic my-replicated-topic
+...
+my test message 1
+my test message 2
+^C
+```
+
+그 다음 이 메세지들을 받아 보겠습니다.
+
+```
+$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning --topic my-replicated-topic
+...
+my test message 1
+my test message 2
+^C
+```
+
+그 다음 장애 내성을 테스트해보겠습니다. 브로커 1은 leader기 때문에 죽여보도록 하겠습니다.
+
+```
+$ ps aux | grep server-1.properties
+7564 ttys002    0:15.91 /System/Library/Frameworks/JavaVM.framework/Versions/1.8/Home/bin/java...
+$ kill -9 7564
+```
+
+> 윈도우에서는
+>
+> ```
+> > wmic process where "caption = 'java.exe' and commandline like '%server-1.properties%'" get processid
+> ProcessId
+> 6016
+> > taskkill /pid 6016 /f
+> ```
+
+팔로워중에 하나가 리더로 바뀌었으므로 노드 1은 더이상 replicat와 동기화 하지 않습니다.(Leadership has switched to one of the followers and node 1 is no longer in the in-sync replica set:)
+
+```
+$ bin/kafka-topics.sh --describe --bootstrap-server localhost:9092 --topic my-replicated-topic
+Topic:my-replicated-topic   PartitionCount:1    ReplicationFactor:3 Configs:
+    Topic: my-replicated-topic  Partition: 0    Leader: 2   Replicas: 1,2,0 Isr: 2,0
+```
+
+그러나 메세지를 갖고 있던 리더가 죽었음에도 불구하고 아까 보낸 메세지는 아직 유효합니다. 
+
+```
+$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --from-beginning --topic my-replicated-topic
+...
+my test message 1
+my test message 2
+^C
+```
+
+
+
 ## 참고자료
 
 [카프카 공식문서](https://kafka.apache.org/documentation/#introduction)
