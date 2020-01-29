@@ -186,43 +186,49 @@ Likewise for streaming data pipelines the combination of subscription to real-ti
 
 For more information on the guarantees, APIs, and capabilities Kafka provides see the rest of the [documentation](https://kafka.apache.org/documentation.html).
 
-### [1.2 Use Cases](https://kafka.apache.org/documentation/#uses)
 
-Here is a description of a few of the popular use cases for Apache Kafka®. For an overview of a number of these areas in action, see [this blog post](https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying/).
 
-#### [Messaging](https://kafka.apache.org/documentation/#uses_messaging)
+# 사용 예
 
-Kafka works well as a replacement for a more traditional message broker. Message brokers are used for a variety of reasons (to decouple processing from data producers, to buffer unprocessed messages, etc). In comparison to most messaging systems Kafka has better throughput, built-in partitioning, replication, and fault-tolerance which makes it a good solution for large scale message processing applications.
+## Messaing
 
-In our experience messaging uses are often comparatively low-throughput, but may require low end-to-end latency and often depend on the strong durability guarantees Kafka provides.
+카프카는 전통적인 메세지 브로커를 대체에 쉽습니다. 메세지 브로커는 다양한 이유 때문에 사용됩니다(데이터 생산자로부터 프로세스를 분리, 처리되지 않는 메세지를 버퍼에 쌓거나). 대부분의 메세징 시스템과 비교하여 카프카는 처리량, 내장 파티셔닝, 복제 및 장애내성이 향상되고 대규모 메세지 처리에 적합한 솔루션 입니다.
 
-In this domain Kafka is comparable to traditional messaging systems such as [ActiveMQ](http://activemq.apache.org/) or [RabbitMQ](https://www.rabbitmq.com/).
+## 웹사이트 활동 추적
 
-#### [Website Activity Tracking](https://kafka.apache.org/documentation/#uses_website)
+본래의 카프카의 사용 사례는 실시간으로 publish-subscribe을 할 수 있는 사용자의 활동을 추적하는 것이였습니다. 이 뜻은 사이트 활동들(페이지,검색,유저들이 할 수 있는 다른 활동)이 활동마다 토픽이 있어 그 토픽으로 데이터가 발행되는 것이였습니다.  이런 피드들은 실시간 처리, 실시간 모니터링 그리고 하둡으로 로딩되어서 데이터들이 구독되었습니다. 
 
-The original use case for Kafka was to be able to rebuild a user activity tracking pipeline as a set of real-time publish-subscribe feeds. This means site activity (page views, searches, or other actions users may take) is published to central topics with one topic per activity type. These feeds are available for subscription for a range of use cases including real-time processing, real-time monitoring, and loading into Hadoop or offline data warehousing systems for offline processing and reporting.
+활동 추적은 주로 유저의 페이지 하나당 많은 활동 메세지들이 생성되었습니다.
 
-Activity tracking is often very high volume as many activity messages are generated for each user page view.
 
-#### [Metrics](https://kafka.apache.org/documentation/#uses_metrics)
 
-Kafka is often used for operational monitoring data. This involves aggregating statistics from distributed applications to produce centralized feeds of operational data.
+## Metrics
 
-#### [Log Aggregation](https://kafka.apache.org/documentation/#uses_logs)
+카프카는 주로 운영 모니터링 데이터에 사용됩니다. 분산된 어플리케이션에서 모니터링 데이터들을 한곳으로 모으기위한 목적으로 사용됩니다.
 
-Many people use Kafka as a replacement for a log aggregation solution. Log aggregation typically collects physical log files off servers and puts them in a central place (a file server or HDFS perhaps) for processing. Kafka abstracts away the details of files and gives a cleaner abstraction of log or event data as a stream of messages. This allows for lower-latency processing and easier support for multiple data sources and distributed data consumption. In comparison to log-centric systems like Scribe or Flume, Kafka offers equally good performance, stronger durability guarantees due to replication, and much lower end-to-end latency.
 
-#### [Stream Processing](https://kafka.apache.org/documentation/#uses_streamprocessing)
+
+## Log Aggregation
+
+많은 사람들이 로그 수집의 대체 솔루션으로 카프카를 사용합니다. 로그 수집은 일반적으로 서버에서 실제 로그 파일을 수집하여 처리를 위해 중앙위치(파일 서버 또는 HDFS)에 저장합니다. 카프카는 파일의 세부 정보를 추상화하고 메세지 스트림으로 로그나 이벤트 데이터들을 보다 깔끔하게 추상화합니다. 이런 방법은 low-latency 처리를 하고, 여러 개의 데이터 소스 지원 및 데이터 분산 소비를 지원합니다. Scribe나 Flume 같은 로그 집중화 시스템과 비교하면 카프카는 좋은 성능과 , replication으로 인한 강한 내구성 그리고 레이턴시가 낮은 장점이 있습니다. 
+
+## Stream Processing
 
 Many users of Kafka process data in processing pipelines consisting of multiple stages, where raw input data is consumed from Kafka topics and then aggregated, enriched, or otherwise transformed into new topics for further consumption or follow-up processing. For example, a processing pipeline for recommending news articles might crawl article content from RSS feeds and publish it to an "articles" topic; further processing might normalize or deduplicate this content and publish the cleansed article content to a new topic; a final processing stage might attempt to recommend this content to users. Such processing pipelines create graphs of real-time data flows based on the individual topics. Starting in 0.10.0.0, a light-weight but powerful stream processing library called [Kafka Streams](https://kafka.apache.org/documentation/streams) is available in Apache Kafka to perform such data processing as described above. Apart from Kafka Streams, alternative open source stream processing tools include [Apache Storm](https://storm.apache.org/) and [Apache Samza](http://samza.apache.org/).
 
-#### [Event Sourcing](https://kafka.apache.org/documentation/#uses_eventsourcing)
+
+
+## Event Sourcing
 
 [Event sourcing](http://martinfowler.com/eaaDev/EventSourcing.html) is a style of application design where state changes are logged as a time-ordered sequence of records. Kafka's support for very large stored log data makes it an excellent backend for an application built in this style.
 
-#### [Commit Log](https://kafka.apache.org/documentation/#uses_commitlog)
+
+
+## Commit Log
 
 Kafka can serve as a kind of external commit-log for a distributed system. The log helps replicate data between nodes and acts as a re-syncing mechanism for failed nodes to restore their data. The [log compaction](https://kafka.apache.org/documentation.html#compaction) feature in Kafka helps support this usage. In this usage Kafka is similar to [Apache BookKeeper](https://bookkeeper.apache.org/) project.
+
+
 
 
 
@@ -424,7 +430,58 @@ my test message 2
 ^C
 ```
 
+### 카프카 Connect를 이용해서 데이터를 import/export 하기
 
+콘솔에서 데이터를 넣고 빼고 하는 작업은 처음에만 편합니다. 다른 소스의 데이터나 다른 시스템 카프카에 있는 데이터를 export하고 싶을 수도 있습니다. 커스텀 통합 코드를 작성하는 대신 카프카 Connect를 이용해서 데이터를 import 하거나 export 할 수 있습니다.
+
+카프카 커넥트는 데이터를 카프카에게 import하거나 export를 할 수 있는 카프카가 포함된 툴입니다. 
+
+테스트하기 위해 기본 데이터를 만들겠습니다.
+
+```
+$ echo -e "foo\nbar" > test.txt
+```
+
+windows에서
+
+```
+$ echo foo> test.txt
+$ echo bar>> test.txt
+```
+
+이제 두개의 커텍터를 독립모드로 실행시킵니다. 실행시킬때 3개의 설정파일을 파라미터로 같이 줍니다. 첫번 째는 항상 카프카 커넥트 프로세스에 관한 설정입니다. 카프카 브로커를 연결시키고 데이타를 직렬화하는 포맷의 관한 공통 설정 파일 입니다. 나머지 설정 파일은 생성할 커넥터를 명시한 설정파일 입니다. 이 파일들은 유니크한 커넥트 이름과 시작할 커넥터 클래스와 커텍너가 필요한 설정들이 포함되어 있습니다.
+
+```
+$ bin/connect-standalone.sh config/connect-standalone.properties config/connect-file-source.properties config/connect-file-sink.properties
+```
+
+카프카에 포함 된 샘플 구성 파일은 앞의 예제에서 구성한 클러스터를 그대로 사용하고 두 개의 커텍트를 만듭니다. 첫번 재로 인풋 파일에서 한줄마다 읽어고 각각 카프카 토픽에 발행해주는 source 커넥터이고, 두번 째는 카프카 토픽에서 메세지를 읽어서 아웃풋 파일에 한줄바다 발행해주는 sink 커넥터 입니다. 
+
+명렁어를 시작하면 많은 로그메세지들이 나타납니다. 커넥터가 시작되고있다는 메세지도 같이 나타납니다. 카프카 커넥터 프로세스가 한번 시작되면 source 커넥터는 test.txt의 파일을 읽고 connect-test 토픽에게 발행해줍니다. 그러면 sink 커넥터는 connect-test로부터 메세지를 읽고 test.sink.txt에 쓰기를 시작합니다. 
+
+```
+$ more test.sink.txt
+foo
+bar
+```
+
+데이터는 카프카 토픽인 `connect-test` 에 저장되고 있습니다. 이제 컨슈머를 콘솔을 열어 토픽안에 있는 데이터를 봐보겠습니다. 
+
+```
+$ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic connect-test --from-beginning
+{"schema":{"type":"string","optional":false},"payload":"foo"}
+{"schema":{"type":"string","optional":false},"payload":"bar"}
+```
+
+커넥터가 데이터를 계속 처리하려면 파일에다가 데이터를 추가하게 되면 파이프라인에서 어떻게 움직이는지 볼 수 있습니다.
+
+```
+$ echo Another line>> test.txt
+```
+
+### 데이터 처리를 위한 카프카 스트림의 사용
+
+카프카 스트림은 인풋 및 아웃풋 데이터가 카프카 클러스터에 저장되는미션 크리티컬한 실시간 애플리케이션 및 마이크로서비스를 구축하기 위한 클라이언트 라이브러리 입니다. 
 
 ## 참고자료
 
