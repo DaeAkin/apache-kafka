@@ -97,21 +97,15 @@ Consumer는 그룹 이름으로 구별하고, 토픽으로 들어온 데이터�
 
 그런데 토픽들은 consumer group들을 갖고 있는데, 그 이유는 확장성과, 장애 내성을 위한 것입니다. 
 
-카프카에서 소비자들이 소비하는 방법은 
-
-
-
-A two server Kafka cluster hosting four partitions (P0-P3) with two consumer groups. Consumer group A has two consumer instances and group B has four.
-
 More commonly, however, we have found that topics have a small number of consumer groups, one for each "logical subscriber". Each group is composed of many consumer instances for scalability and fault tolerance. This is nothing more than publish-subscribe semantics where the subscriber is a cluster of consumers instead of a single process.
 
-The way consumption is implemented in Kafka is by dividing up the partitions in the log over the consumer instances so that each instance is the exclusive consumer of a "fair share" of partitions at any point in time. This process of maintaining membership in the group is handled by the Kafka protocol dynamically. If new instances join the group they will take over some partitions from other members of the group; if an instance dies, its partitions will be distributed to the remaining instances.
+카프카에서 소비자들이 소비하는 방법은 로그안에 있는 파티션을 소비에 인스턴스들에게 분배를 해서, 인스턴스마다 언제든지 독점 소비자가 될 수 있습니다. 그룹에서 이런 유지 작업들은 카프카 프로토콜이 동적으로 처리합니다. 새로운 인스턴스가 그룹에 들어오게 되면 그룹 안에 있는 다른 소비자들의 일부부 파티션을 조금 때어 줍니다. 인스턴스가 죽으면 해당 인스턴스가 갖고 있는 파티션들은 남아 있는 인스턴스들에게 분배 됩니다.
 
 Kafka only provides a total order over records *within* a partition, not between different partitions in a topic. Per-partition ordering combined with the ability to partition data by key is sufficient for most applications. However, if you require a total order over records this can be achieved with a topic that has only one partition, though this will mean only one consumer process per consumer group. 
 
-## Multi-tenacy(멀티 테넌시)
+## Multi-tenacy(멀티 테넌시 : 다중소유)
 
-카프카를 멀티 테넌시 방법으로 배치할 수 있습니다. 멀티 테넌시는 어떤 토픽이 데이터를 생산하거나 소비할지 설정함으로써 활성화 시킬수 있습니다. There is also operations support for quotas. 관리자는 요청에 대한 할당량을 정의하고 적용하여 클라이언트가 사용하는 브로커 리소스를 제어 할 수 있습니다.
+카프카를 멀티 테넌시 방법으로 배치할 수 있습니다. 멀티 테넌시는 어떤 토픽이 데이터를 생산하거나 소비할지 설정함으로써 활성화 시킬수 있습니다. 또한 할당량을 조절해줄 수 있습니다.  관리자는 요청에 대한 할당량을 정의하고 적용하여 클라이언트가 사용하는 브로커 리소스를 제어 할 수 있습니다.
 
 > 멀티 테넌시(Multi-tenacy) : 다중 소유라는 뜻
 
@@ -135,47 +129,45 @@ Kafka only provides a total order over records *within* a partition, not between
 
 큐는 서버에서 데이터를 읽고 데이터들을 컨슈머에게 전해주는 컨슈머의 풀 입니다.  publish-subscribe 모델은 데이터를 모든 컨슈머에게 전달해주는 것입니다. 이 두개의 모델은 장점과 단점을 갖고 있습니다. 큐의 강점은 여러 개의 컨슈머 인스턴스에 대하여 데이터 작업을 분할시키게 해주고, 작업을 스케일업 해줄 수 있습니다. 불행하게도 큐는 여러개의 구독자(subscribe)를 둘 수 없습니다. 데이터가 읽혀지면 그 데이터는 사라지기 때문입니다. Publish-subscribe는 멀티 프로세스에게 데이터를 전달할 수 있지만, 모든 메세지가 모든 구독자에게 가므로 스케일업 할 방법이 없습니다.
 
-The consumer group concept in Kafka generalizes these two concepts. 카프카에서 consumer 그룹의 컨셉은 위에 두개의 컨셉을 해결할 수 있습니다. 큐를 사용해서 컨슈머 그룹은 프로세스들을 나누어질 수 있고(컨슈머 그룹의 수로), publish-subscribe로 카프카는 여러 개의 컨슈머 그룹에게 메세지를 전달할 수 있습니다.
+카프카에서 컨슈머 그룹의 개념은 두개의 컨셉으로 일반화됩니다. 큐를 사용해서 컨슈머 그룹을 나누어 처리할 수 있고(컨슈머 그룹의 수로), publish-subscribe로 카프카는 여러 개의 컨슈머 그룹에게 메세지를 전달할 수 있습니다.
 
-카프카 모델의 장점은 모든 토픽은 두개의 프로퍼티를 갖는데, 프로세싱을 스케일 할 수 있고, 또한 멀티-구독자를 가질 수 있습니다. 둘중에 하나를 선택할 필요가 없습니다.
+카프카 모델의 장점은 모든 토픽은 두개의 프로퍼티를 갖는데, 처리량을 늘릴 수 있고, 또한 멀티-구독자를 가질 수 있습니다. 둘중에 하나를 선택할 필요가 없습니다.
 
 카프카는 또한 전통적인 메세징 시스템보다 강하게 데이터의 순서를 보장합니다. 
 
-전통적인 큐는 서버에서 순서대로 데이터를 가져옵니다, 그리고 멀티 컨슈머가 큐에서 데이터를 가져오면 서버는 데이터가 저장된 순서대로 데이터를 줍니다. 그러나 서버는 데이터를 순서대로 줬지만 , 데이터는 비동기적으로 컨슈머에게 전달될 수 있어서, 컨슈머에게 다른 데이터의 순서로 전달 될 수 있습니다. parallel 하게 컨슈머가 소비한다면 데이터의 순서를 잃어버릴 수 있습니다.전통적인 메세징 시스템은 주로 "독점적 소비자"의 개념을 갖고 있는데, 오직 한개의 프로세스만 큐에서 컨슈머에게 전달하는 것입니다, 그러나 이 방법은 parallel 하지 않습니다. 
+전통적인 큐는 서버에서 순서대로 데이터를 가져옵니다, 그리고 여러 명의 컨슈머가 큐에서 데이터를 가져오면 서버는 데이터가 저장된 순서대로 데이터를 줍니다. 그러나 서버는 데이터를 순서대로 줬지만 , 데이터는 비동기적으로 컨슈머에게 전달될 수 있어서, 컨슈머에게 다른 데이터의 순서로 전달 될 수 있습니다. 병렬적으로 컨슈머가 소비한다면 데이터의 순서를 잃어버릴 수 있습니다.전통적인 메세징 시스템은 주로 "독점적 소비자"의 개념을 갖고있으며, 오직 한개의 프로세스만 큐에서 컨슈머에게 전달하는 것입니다, 그러나 이 방법은 병렬처리를 지원하지 않습니다. 
 
-이에 반해 카프카는 더 나은 방법을 제공합니다. 카프카는 파티션에 페럴러즘 개념이 있기 때문에, 순서를 보장하고, 로드밸런싱이 가능합니다. 이런 것들은  토픽 -> 컨슈머 -> 컨슈머 그룹 안에 있는 파티션들에게 할당되서 각각 파티션들은 그룹에서 정확히 한개만 소비합니다. 이렇게 함으로써 컨슈머가 오직 파티션의 구독자가 되고, 데이터를 순서대로 소비할수 있게 됩니다. 그리고 많은 파티션이 로드밸런싱 상태가 됩니다. 
-
-
+이에 반해 카프카는 더 나은 방법을 제공합니다. 카프카는 파티션에 병렬처리 개념이 있기 때문에, 순서를 보장하고, 로드밸런싱이 가능합니다. 이런 병렬처리는 카프카가 파티션을 할당하기 때문에 그룹에 안에 있는 컨슈머는 정확히 해당 파티션을 소비합니다. 이렇게 함으로써 컨슈머가 오직 파티션의 구독자가 되고, 데이터를 순서대로 소비할수 있게 됩니다. 그리고 많은 파티션이 로드밸런싱 상태가 됩니다. 
 
 ## 스토리지 시스템
 
-#### Kafka as a Storage System
+이렇게 메세지 발행과 소비가 분리된 다른 메세지 큐 시스템은 스토리지 시스템으로 효과적으로 작동합니다.
 
-Any message queue that allows publishing messages decoupled from consuming them is effectively acting as a storage system for the in-flight messages. What is different about Kafka is that it is a very good storage system.
+카프카에 쓰여진 데이터는 하드디스크에 저장되며, 장애내성을 위해 복제됩니다. 카프카는 확인할 때 까지 기다리므로, 전부 다 복제되거
 
-Data written to Kafka is written to disk and replicated for fault-tolerance. Kafka allows producers to wait on acknowledgement so that a write isn't considered complete until it is fully replicated and guaranteed to persist even if the server written to fails.
+(Data written to Kafka is written to disk and replicated for fault-tolerance. Kafka allows producers to wait on acknowledgement so that a write isn't considered complete until it is fully replicated and guaranteed to persist even if the server written to fails.)
 
-The disk structures Kafka uses scale well—Kafka will perform the same whether you have 50 KB or 50 TB of persistent data on the server.
+카프카는 확장성이 우수하며, 데이터가 50KB가 있던지, 50TB가 있던지, 동일한 성능을 냅니다.
 
-As a result of taking storage seriously and allowing the clients to control their read position, you can think of Kafka as a kind of special purpose distributed filesystem dedicated to high-performance, low-latency commit log storage, replication, and propagation.
+클라이언트가 읽는 위치를 제어하기 때문에, 카프카는 고성능,low 레이턴시,복제,전파 등 특수 목적 파일 시스템으로 생각할 수 있습니다.
 
-For details about the Kafka's commit log storage and replication design, please read [this](https://kafka.apache.org/documentation/#design) page.
+#### 스트림 처리
 
-#### Kafka for Stream Processing
+읽기,쓰기 데이터스트림 저장도 가능한 반면 실시간으로 스트림 처리도 가능합니다.
 
-It isn't enough to just read, write, and store streams of data, the purpose is to enable real-time processing of streams.
+카프카에서 스트림 프로세서는 토픽으로부터 끊임없는 데이터의 스트림과 이 데이터스트림에서 어떤 처리를 수행하거나, 다시 토픽으로 끊임없는 데이터를 보내줄 수 있습니다.
 
-In Kafka a stream processor is anything that takes continual streams of data from input topics, performs some processing on this input, and produces continual streams of data to output topics.
+예를 들어, 매장 어플리케이션에서 할인,배송 데이터를 인풋으로 받고, 아웃풋으로 재정렬된 데이터나, 가격할인이 된 데이터를 받을 수 있습니다.
 
-For example, a retail application might take in input streams of sales and shipments, and output a stream of reorders and price adjustments computed off this data.
+직접적으로 producer와 consumer API를 사용하면 가능합니다. 그러나 좀 더 복잡한 계산에서는 카프카는 통합된 Stream API를 제공해줍니다. 이 동작은 Stream을 모아서 계산한다거나, Stream을 join해서 같이 계산하는 작업을 하게 해줍니다.
 
-It is possible to do simple processing directly using the producer and consumer APIs. However for more complex transformations Kafka provides a fully integrated [Streams API](https://kafka.apache.org/documentation/streams). This allows building applications that do non-trivial processing that compute aggregations off of streams or join streams together.
+#### 조각들 합치기 
 
-This facility helps solve the hard problems this type of application faces: handling out-of-order data, reprocessing input as code changes, performing stateful computations, etc.
+이런 메세징,스토리지,stream 처리 기능들은 잘 사용하지 않을 것 같지만, 스트리밍 플랫폼에서 가장 중요한 역할을 합니다.
 
-The streams API builds on the core primitives Kafka provides: it uses the producer and consumer APIs for input, uses Kafka for stateful storage, and uses the same group mechanism for fault tolerance among the stream processor instances.
+HDFS(하둡 분산 시스템)은 batch 처리를 위한 정적 파일을 저장합니다. 이와 같은 시스템은 가거의 데이터를 저장하고 처리할 수 있습니다(?)
 
-#### Putting the Pieces Together
+전통적인 메세징 시스템은 메세지를 읽고 나서 들어오는 메세지를 처리해줍니다. 애
 
 This combination of messaging, storage, and stream processing may seem unusual but it is essential to Kafka's role as a streaming platform.
 
